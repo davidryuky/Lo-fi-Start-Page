@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { X, Upload, Download, Trash2, Plus, Star, Layout, Palette, Monitor, Bookmark as BookmarkIcon, Database, Image as ImageIcon, Cloud, Clock, Search, ListChecks, Lock, Sparkles, Timer, StickyNote, EyeOff, Shield, ArrowRight, LogOut, Bitcoin, Wind, MapPin, Loader, Shuffle, ChevronRight, Check, BookOpen, Keyboard, MousePointer2, Grid, Link, User, RefreshCw, AlertCircle, Terminal, Copy, ExternalLink, Save, HardDrive, Unlock } from 'lucide-react';
+import { X, Upload, Download, Trash2, Plus, Star, Layout, Palette, Monitor, Bookmark as BookmarkIcon, Database, Image as ImageIcon, Cloud, Clock, Search, ListChecks, Lock, Sparkles, Timer, StickyNote, EyeOff, Shield, ArrowRight, LogOut, Bitcoin, Wind, MapPin, Loader, Shuffle, ChevronRight, Check, BookOpen, Keyboard, MousePointer2, Grid, Link, User, RefreshCw, AlertCircle, Terminal, Copy, ExternalLink, Save, HardDrive, Unlock, Tag } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { AppConfig, Bookmark, FontType, SearchEngine, ThemeConfig, BookmarkSize, WidgetStyle } from '../types';
 import { DEFAULT_CONFIG, SEARCH_ENGINES, LOFI_THEMES, BACKGROUND_CATEGORIES } from '../constants';
@@ -980,21 +980,40 @@ create policy "Allow access" on public.user_configs for all using (true) with ch
                                  <StyledInput placeholder="Title (e.g., GitHub)" value={newBookmarkTitle} onChange={e => setNewBookmarkTitle(e.target.value)} />
                                  <StyledInput placeholder="URL (https://...)" value={newBookmarkUrl} onChange={e => setNewBookmarkUrl(e.target.value)} />
                              </div>
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                                 <div className="relative">
-                                     <StyledInput 
-                                        list="categories" 
-                                        placeholder="Category (e.g., Work)" 
+                             
+                             {/* Improved Category Selection */}
+                             <div className="space-y-2">
+                                <label className="text-sm font-bold text-neutral-800 ml-1 block">Category</label>
+                                
+                                {existingCategories.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mb-2">
+                                        {existingCategories.map(cat => (
+                                            <button
+                                                key={cat}
+                                                onClick={() => setNewBookmarkCategory(cat)}
+                                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                                                    newBookmarkCategory === cat
+                                                    ? 'bg-neutral-900 text-white border-neutral-900'
+                                                    : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300'
+                                                }`}
+                                            >
+                                                {cat}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                                    <StyledInput 
+                                        placeholder="Or type new category..." 
                                         value={newBookmarkCategory} 
                                         onChange={e => setNewBookmarkCategory(e.target.value)} 
-                                     />
-                                     <datalist id="categories">
-                                         {existingCategories.map(c => <option key={c} value={c} />)}
-                                     </datalist>
-                                 </div>
-                                 <Toggle label="Favorite" checked={newBookmarkIsFavorite} onChange={setNewBookmarkIsFavorite} />
+                                    />
+                                    <Toggle label="Favorite" checked={newBookmarkIsFavorite} onChange={setNewBookmarkIsFavorite} />
+                                </div>
                              </div>
-                             <button onClick={addBookmark} disabled={!newBookmarkTitle || !newBookmarkUrl} className="w-full py-3 bg-neutral-900 text-white rounded-xl font-bold hover:bg-neutral-800 transition disabled:opacity-50">Add Bookmark</button>
+
+                             <button onClick={addBookmark} disabled={!newBookmarkTitle || !newBookmarkUrl} className="w-full py-3 bg-neutral-900 text-white rounded-xl font-bold hover:bg-neutral-800 transition disabled:opacity-50 mt-2">Add Bookmark</button>
                         </div>
 
                         {/* List */}

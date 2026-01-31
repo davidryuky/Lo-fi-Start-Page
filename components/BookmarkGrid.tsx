@@ -41,6 +41,8 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
   const handlePointerDown = (e: React.PointerEvent) => {
     if (isLocked) return;
     
+    // Unified Long Press for both Mouse and Touch
+    // User must hold for 300ms to enter drag mode
     timerRef.current = window.setTimeout(() => {
         setIsReadyToDrag(true);
         if (navigator.vibrate) navigator.vibrate(50);
@@ -49,6 +51,7 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
 
   const handlePointerUp = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
+    // Add a small delay to clear ready state to allow click events to pass if not dragged
     setTimeout(() => setIsReadyToDrag(false), 200);
   };
 
@@ -125,14 +128,14 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({
         backdropFilter: config.bookmarkStyle.blurLevel > 0 ? `blur(${config.bookmarkStyle.blurLevel}px)` : 'none',
         borderColor: isReadyToDrag ? config.theme.accentColor : `${config.bookmarkStyle.textColor}22`,
         borderRadius: size === 'icon' ? '50%' : config.theme.borderRadius,
-        touchAction: 'none' // Prevent scroll while holding
+        touchAction: 'none' // Prevent scroll while holding on touch
       }}
     >
       <a 
         href={bookmark.url}
         draggable={false}
         onClick={(e) => {
-            // Prevent navigation if we were getting ready to drag
+            // Prevent navigation if we were dragging/ready
             if (isReadyToDrag) e.preventDefault();
         }}
         className="flex flex-col items-center justify-center w-full h-full gap-2 text-center z-10 select-none"
@@ -269,48 +272,55 @@ export const BookmarkGrid: React.FC<BookmarkGridProps> = ({ config, onUpdate }) 
 
     const handleDropBookmark = (e: React.DragEvent, targetId: string, targetGroup: string) => {
         const type = e.dataTransfer.getData('type');
-        if (type !== 'BOOKMARK') return;
+        // Only accept bookmark drops, not files or text
+        if (type && type !== 'BOOKMARK') return; 
 
         e.preventDefault();
         e.stopPropagation();
-        setDraggedId(null);
         
-        const draggedIdRaw = e.dataTransfer.getData('text/plain');
+        // Robust ID retrieval
+        const draggedIdRaw = e.dataTransfer.getData('text/plain') || draggedId;
         const sourceGroup = e.dataTransfer.getData('group');
 
-        if (sourceGroup !== targetGroup) return; 
-        if (draggedIdRaw === targetId) return;
+        setDraggedId(null);
 
-        const allBookmarks = [...config.bookmarks];
+        // Basic validation
+        if (!draggedIdRaw) return;
+        if (draggedIdRaw === targetId) return;
+        if (sourceGroup && sourceGroup !== targetGroup) return;
+
+        // --- NEW ROBUST SORTING LOGIC ---
+        // Instead of modifying the array in place based on global indices, 
+        // we isolate the group, sort it, and then merge it back.
         
+        const allBookmarks = [...config.bookmarks];
         let groupItems: Bookmark[] = [];
+        let otherItems: Bookmark[] = [];
+
+        // 1. Isolate items
         if (targetGroup === 'favorites') {
-            groupItems = allBookmarks.filter(b => b.isFavorite && b.category !== 'Private');
+             groupItems = allBookmarks.filter(b => b.isFavorite && b.category !== 'Private');
+             otherItems = allBookmarks.filter(b => !(b.isFavorite && b.category !== 'Private'));
         } else {
-            groupItems = allBookmarks.filter(b => !b.isFavorite && (b.category || 'General') === targetGroup);
+             // For regular categories: Must match the renderer's logic exactly
+             // Renderer uses: !b.isFavorite && (b.category || 'General') === cat
+             groupItems = allBookmarks.filter(b => !b.isFavorite && (b.category || 'General') === targetGroup);
+             otherItems = allBookmarks.filter(b => b.isFavorite || (b.category || 'General') !== targetGroup);
         }
 
+        // 2. Find local indices
         const oldIndex = groupItems.findIndex(b => b.id === draggedIdRaw);
         const newIndex = groupItems.findIndex(b => b.id === targetId);
 
         if (oldIndex === -1 || newIndex === -1) return;
 
+        // 3. Move item within the isolated group
         const [movedItem] = groupItems.splice(oldIndex, 1);
         groupItems.splice(newIndex, 0, movedItem);
 
-        let groupIndex = 0;
-        const newBookmarks = allBookmarks.map(b => {
-             if (b.category === 'Private' && targetGroup !== 'Private') return b;
-
-             const isFav = b.isFavorite;
-             const cat = b.category || 'General';
-             const belongsToGroup = targetGroup === 'favorites' ? isFav : (!isFav && cat === targetGroup);
-             
-             if (belongsToGroup) {
-                 return groupItems[groupIndex++];
-             }
-             return b;
-        });
+        // 4. Merge back together (Order of merge: others + sorted group)
+        // This effectively "groups" the category together in the JSON data, ensuring stability.
+        const newBookmarks = [...otherItems, ...groupItems];
 
         onUpdate({ ...config, bookmarks: newBookmarks });
     };
@@ -323,6 +333,7 @@ export const BookmarkGrid: React.FC<BookmarkGridProps> = ({ config, onUpdate }) 
         }
         
         const target = e.target as HTMLElement;
+        // Prevent dragging if clicking a button/input inside the header
         if (target.tagName === 'BUTTON' || target.closest('button') || target.tagName === 'INPUT') {
             e.preventDefault();
             return;
