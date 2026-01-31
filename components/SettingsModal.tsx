@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { X, Upload, Download, Trash2, Plus, Star, Layout, Palette, Monitor, Bookmark as BookmarkIcon, Database, Image as ImageIcon, Cloud, Clock, Search, ListChecks, Lock, Sparkles, Timer, StickyNote, EyeOff, Shield, ArrowRight, LogOut, Bitcoin, Wind, MapPin, Loader, Shuffle, ChevronRight, Check, BookOpen, Keyboard, MousePointer2, Grid, Link, User, RefreshCw, AlertCircle, Terminal, Copy, ExternalLink, Save, HardDrive } from 'lucide-react';
+import { X, Upload, Download, Trash2, Plus, Star, Layout, Palette, Monitor, Bookmark as BookmarkIcon, Database, Image as ImageIcon, Cloud, Clock, Search, ListChecks, Lock, Sparkles, Timer, StickyNote, EyeOff, Shield, ArrowRight, LogOut, Bitcoin, Wind, MapPin, Loader, Shuffle, ChevronRight, Check, BookOpen, Keyboard, MousePointer2, Grid, Link, User, RefreshCw, AlertCircle, Terminal, Copy, ExternalLink, Save, HardDrive, Unlock } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { AppConfig, Bookmark, FontType, SearchEngine, ThemeConfig, BookmarkSize, WidgetStyle } from '../types';
 import { DEFAULT_CONFIG, SEARCH_ENGINES, LOFI_THEMES, BACKGROUND_CATEGORIES } from '../constants';
@@ -674,7 +674,6 @@ create policy "Allow access" on public.user_configs for all using (true) with ch
                     </div>
                 )}
                 
-                {/* ... other tabs preserved ... */}
                 {activeTab === 'background' && (
                     <div className="space-y-8 animate-fade-in-up max-w-2xl mx-auto">
                          <SectionTitle title="Background" desc="Set the mood of your space." />
@@ -970,7 +969,135 @@ create policy "Allow access" on public.user_configs for all using (true) with ch
                     </div>
                 )}
                 
-                {/* UPDATED CLOUD SYNC TAB */}
+                {activeTab === 'bookmarks' && (
+                    <div className="space-y-8 animate-fade-in-up max-w-3xl mx-auto">
+                        <SectionTitle title="Bookmarks" desc="Manage your links and categories." />
+                        
+                        {/* Add New Form */}
+                        <div className="bg-neutral-50 p-6 rounded-3xl space-y-4">
+                             <h4 className="font-bold text-neutral-900 flex items-center gap-2"><Plus size={18}/> Add New</h4>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                 <StyledInput placeholder="Title (e.g., GitHub)" value={newBookmarkTitle} onChange={e => setNewBookmarkTitle(e.target.value)} />
+                                 <StyledInput placeholder="URL (https://...)" value={newBookmarkUrl} onChange={e => setNewBookmarkUrl(e.target.value)} />
+                             </div>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                                 <div className="relative">
+                                     <StyledInput 
+                                        list="categories" 
+                                        placeholder="Category (e.g., Work)" 
+                                        value={newBookmarkCategory} 
+                                        onChange={e => setNewBookmarkCategory(e.target.value)} 
+                                     />
+                                     <datalist id="categories">
+                                         {existingCategories.map(c => <option key={c} value={c} />)}
+                                     </datalist>
+                                 </div>
+                                 <Toggle label="Favorite" checked={newBookmarkIsFavorite} onChange={setNewBookmarkIsFavorite} />
+                             </div>
+                             <button onClick={addBookmark} disabled={!newBookmarkTitle || !newBookmarkUrl} className="w-full py-3 bg-neutral-900 text-white rounded-xl font-bold hover:bg-neutral-800 transition disabled:opacity-50">Add Bookmark</button>
+                        </div>
+
+                        {/* List */}
+                        <div className="space-y-2">
+                            {config.bookmarks.filter(b => b.category !== 'Private').map(b => (
+                                <div key={b.id} className="flex items-center justify-between p-4 bg-white border border-neutral-100 rounded-2xl group hover:border-neutral-300 transition-all">
+                                    <div className="flex items-center gap-4 overflow-hidden">
+                                        <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center shrink-0 font-bold text-neutral-600">
+                                            {b.title.charAt(0)}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="font-bold text-neutral-900 truncate">{b.title}</div>
+                                            <div className="text-xs text-neutral-500 truncate">{b.url}</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <span className="px-2 py-1 bg-neutral-100 rounded-lg text-[10px] font-bold uppercase tracking-wider text-neutral-600">{b.category || 'General'}</span>
+                                        <button onClick={() => toggleFavorite(b.id)} className={`p-2 rounded-xl transition-colors ${b.isFavorite ? 'text-yellow-400 bg-yellow-50' : 'text-neutral-300 hover:text-yellow-400'}`}>
+                                            <Star size={18} fill={b.isFavorite ? "currentColor" : "none"} />
+                                        </button>
+                                        <button onClick={() => removeBookmark(b.id)} className="p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                             {config.bookmarks.filter(b => b.category !== 'Private').length === 0 && (
+                                <div className="text-center py-8 text-neutral-400">No bookmarks yet.</div>
+                             )}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'private' && (
+                    <div className="space-y-8 animate-fade-in-up max-w-2xl mx-auto">
+                        <SectionTitle title="Private Vault" desc="Secure bookmarks hidden from the main view." />
+                        
+                        {!config.privateConfig.enabled ? (
+                            <div className="bg-neutral-50 p-8 rounded-3xl text-center space-y-4">
+                                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm text-neutral-900 mb-2">
+                                    <Shield size={32} />
+                                </div>
+                                <h3 className="text-xl font-bold text-neutral-900">Enable Private Vault</h3>
+                                <p className="text-neutral-600 max-w-md mx-auto">Create a password to access a hidden category of bookmarks. These links won't appear in search or the main grid until unlocked.</p>
+                                <div className="max-w-xs mx-auto space-y-2">
+                                    <StyledInput type="password" placeholder="Set Password" value={privatePasswordInput} onChange={e => setPrivatePasswordInput(e.target.value)} />
+                                    {privateError && <p className="text-red-500 text-xs font-bold">{privateError}</p>}
+                                </div>
+                                <button onClick={handleUnlockPrivate} className="px-8 py-3 bg-neutral-900 text-white rounded-xl font-bold hover:bg-neutral-800 transition">Enable Vault</button>
+                            </div>
+                        ) : !isPrivateUnlocked ? (
+                             <div className="bg-neutral-50 p-8 rounded-3xl text-center space-y-4">
+                                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm text-neutral-900 mb-2">
+                                    <Lock size={32} />
+                                </div>
+                                <h3 className="text-xl font-bold text-neutral-900">Vault Locked</h3>
+                                <div className="max-w-xs mx-auto space-y-2">
+                                    <StyledInput type="password" placeholder="Enter Password" value={privatePasswordInput} onChange={e => setPrivatePasswordInput(e.target.value)} />
+                                    {privateError && <p className="text-red-500 text-xs font-bold">{privateError}</p>}
+                                </div>
+                                <button onClick={handleUnlockPrivate} className="px-8 py-3 bg-neutral-900 text-white rounded-xl font-bold hover:bg-neutral-800 transition">Unlock</button>
+                            </div>
+                        ) : (
+                             <div className="space-y-6">
+                                <div className="bg-green-50 text-green-700 p-4 rounded-xl flex items-center gap-3 font-medium text-sm">
+                                    <Unlock size={18} /> Vault Unlocked
+                                </div>
+
+                                <div className="bg-neutral-50 p-6 rounded-3xl space-y-4">
+                                     <h4 className="font-bold text-neutral-900 flex items-center gap-2"><Plus size={18}/> Add Private Link</h4>
+                                     <div className="grid grid-cols-1 gap-4">
+                                         <StyledInput placeholder="Title" value={newPrivateLinkTitle} onChange={e => setNewPrivateLinkTitle(e.target.value)} />
+                                         <StyledInput placeholder="URL" value={newPrivateLinkUrl} onChange={e => setNewPrivateLinkUrl(e.target.value)} />
+                                     </div>
+                                     <button onClick={addPrivateBookmark} disabled={!newPrivateLinkTitle || !newPrivateLinkUrl} className="w-full py-3 bg-neutral-900 text-white rounded-xl font-bold hover:bg-neutral-800 transition disabled:opacity-50">Add to Vault</button>
+                                </div>
+
+                                <div className="space-y-2">
+                                    {privateBookmarks.map(b => (
+                                        <div key={b.id} className="flex items-center justify-between p-4 bg-white border border-neutral-100 rounded-2xl group hover:border-neutral-300 transition-all">
+                                            <div className="flex items-center gap-4 overflow-hidden">
+                                                <div className="w-10 h-10 rounded-full bg-neutral-900 text-white flex items-center justify-center shrink-0 font-bold">
+                                                    <Lock size={16} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="font-bold text-neutral-900 truncate">{b.title}</div>
+                                                    <div className="text-xs text-neutral-500 truncate">{b.url}</div>
+                                                </div>
+                                            </div>
+                                            <button onClick={() => removeBookmark(b.id)} className="p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {privateBookmarks.length === 0 && (
+                                        <div className="text-center py-8 text-neutral-400">Vault is empty.</div>
+                                    )}
+                                </div>
+                             </div>
+                        )}
+                    </div>
+                )}
+
                 {activeTab === 'cloud' && (
                     <div className="space-y-8 animate-fade-in-up max-w-2xl mx-auto">
                         <SectionTitle title="Cloud Sync" desc="Sync your config using Supabase." />
